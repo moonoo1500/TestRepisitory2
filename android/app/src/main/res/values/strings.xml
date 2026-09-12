@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">DOMINION</string>
+    <string name="title_activity_main">DOMINION</string>
+    <string name="package_name">ai.arena.dominion</string>
+    <string name="custom_url_scheme">ai.arena.dominion</string>
+</resources>

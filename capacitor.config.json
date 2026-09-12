@@ -1,0 +1,12 @@
+{
+  "appId": "ai.arena.dominion",
+  "appName": "DOMINION",
+  "webDir": "dist",
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#04070d"
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}

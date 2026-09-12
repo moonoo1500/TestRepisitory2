@@ -38,12 +38,14 @@ export class CameraRig {
     this.goal.z = clamp(this.goal.z + dz, -this.map.worldSize / 2 + 6, this.map.worldSize / 2 - 6);
   }
 
-  /** Панорама в экранных осях (WASD/края экрана) */
+  /**
+   * Панорама в экранных осях: dx = +1 вправо, dz = +1 «от зрителя» (вверх по экрану).
+   * right = (cos yaw, -sin yaw), down = (sin yaw, cos yaw) в плоскости XZ.
+   */
   panScreen(dx, dz, dt) {
     const s = this.panSpeed * dt * (this.distance / 46);
     const cos = Math.cos(this.yaw), sin = Math.sin(this.yaw);
-    // вперёд/назад по направлению взгляда
-    this.pan(sin * dz * s + cos * dx * s, cos * dz * s - sin * dx * s);
+    this.pan((-sin * dz + cos * dx) * s, (-cos * dz - sin * dx) * s);
   }
 
   zoom(delta, px = 0.5, py = 0.5) {

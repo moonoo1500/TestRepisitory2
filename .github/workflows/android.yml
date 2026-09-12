@@ -1,0 +1,66 @@
+# =========================================================
+# Сборка Android-APK (debug) на GitHub Actions.
+# У раннеров ubuntu-latest предустановлены JDK и Android SDK,
+# поэтому настоящий .apk собирается именно здесь, а не в песочнице.
+#
+# Запуск:
+#   - автоматически при push в ветку сессии
+#   - вручную: вкладка Actions → "Build Android APK" → Run workflow
+# Результат: артефакт app-debug.apk на странице запуска.
+# =========================================================
+name: Build Android APK
+
+on:
+  push:
+    branches: [arena/01a09489-testrepisitory2]
+  workflow_dispatch: {}
+
+jobs:
+  build-apk:
+    name: Assemble debug APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - name: Install npm dependencies
+        run: npm ci
+
+      - name: Build web bundle
+        run: npm run build
+
+      - name: Sync Capacitor (Android)
+        run: npx cap sync android
+
+      - name: Install Android SDK components
+        run: |
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses || true
+          yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            "platforms;android-36" "build-tools;36.0.0" "platform-tools" || true
+
+      - name: Assemble debug APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dominion-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error

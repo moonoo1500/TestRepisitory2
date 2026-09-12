@@ -42,7 +42,162 @@ export class Input {
     // миникарта
     const mm = document.getElementById('minimap');
     mm.addEventListener('mousedown', (e) => this.onMinimap(e));
+    mm.addEventListener('touchstart', (e) => this.onMinimapTouch(e), { passive: false });
     mm.addEventListener('contextmenu', (e) => e.preventDefault());
+
+    this.bindTouch();
+  }
+
+  /* ================= ТАЧ (Android / iOS) =================
+     1 палец, тянуть  — панорама камеры
+     2 пальца, щипок  — зум
+     2 пальца, тянуть — панорама
+     тап              — выбор / подтверждение постройки
+     долгий тап       — приказ (аналог ПКМ)
+     двойной тап      — все юниты того же типа
+  ====================================================== */
+  bindTouch() {
+    const c = this.canvas;
+    c.addEventListener('touchstart', (e) => this.onTouchStart(e), { passive: false });
+    c.addEventListener('touchmove', (e) => this.onTouchMove(e), { passive: false });
+    c.addEventListener('touchend', (e) => this.onTouchEnd(e), { passive: false });
+    c.addEventListener('touchcancel', () => this.resetTouch(), { passive: false });
+  }
+
+  resetTouch() {
+    this.touch = null;
+    this.pinch = null;
+  }
+
+  /** Мировых единиц на один экранный пиксель на уровне земли */
+  worldPerPixel() {
+    const h = innerHeight;
+    const a = this.groundAt(innerWidth / 2, h / 2);
+    const b = this.groundAt(innerWidth / 2, h / 2 + 60);
+    if (!a || !b) return 0.08;
+    return Math.max(0.005, Math.hypot(a.x - b.x, a.z - b.z) / 60);
+  }
+
+  /** Смещение камеры в мировых координатах по экранным пикселям */
+  screenDeltaToWorld(dxPx, dyPx) {
+    const yaw = this.game.cameraRig.yaw;
+    const k = this.worldPerPixel();
+    const rightX = Math.cos(yaw), rightZ = -Math.sin(yaw);
+    const downX = Math.sin(yaw), downZ = Math.cos(yaw);
+    return {
+      x: -(rightX * dxPx + downX * dyPx) * k,
+      z: -(rightZ * dxPx + downZ * dyPx) * k,
+    };
+  }
+
+  onTouchStart(e) {
+    e.preventDefault();
+    if (!this.enabled) return;
+    this.game.audio.resume();
+    const t = e.touches;
+    if (t.length === 1) {
+      this.touch = {
+        x: t[0].clientX, y: t[0].clientY,
+        startX: t[0].clientX, startY: t[0].clientY,
+        t0: performance.now(), moved: false, id: t[0].identifier,
+      };
+      this.mouse.x = t[0].clientX; this.mouse.y = t[0].clientY;
+    } else if (t.length >= 2) {
+      // переход в щипок: отменяем одиночный жест
+      const dx = t[1].clientX - t[0].clientX, dy = t[1].clientY - t[0].clientY;
+      this.pinch = {
+        dist: Math.hypot(dx, dy),
+        cx: (t[0].clientX + t[1].clientX) / 2,
+        cy: (t[0].clientY + t[1].clientY) / 2,
+      };
+      this.touch = null;
+    }
+  }
+
+  onTouchMove(e) {
+    e.preventDefault();
+    if (!this.enabled) return;
+    const t = e.touches;
+    if (t.length >= 2 && this.pinch) {
+      const dx = t[1].clientX - t[0].clientX, dy = t[1].clientY - t[0].clientY;
+      const d = Math.hypot(dx, dy);
+      const cx = (t[0].clientX + t[1].clientX) / 2;
+      const cy = (t[0].clientY + t[1].clientY) / 2;
+      if (this.pinch.dist > 4 && d > 4) {
+        this.game.cameraRig.zoom(this.pinch.dist / d - 1, cx / innerWidth, 1 - cy / innerHeight);
+      }
+      const dWorld = this.screenDeltaToWorld(cx - this.pinch.cx, cy - this.pinch.cy);
+      this.game.cameraRig.pan(dWorld.x, dWorld.z);
+      this.pinch.dist = d; this.pinch.cx = cx; this.pinch.cy = cy;
+      return;
+    }
+    if (t.length === 1 && this.touch) {
+      const x = t[0].clientX, y = t[0].clientY;
+      const dx = x - this.touch.x, dy = y - this.touch.y;
+      if (Math.hypot(x - this.touch.startX, y - this.touch.startY) > 12) this.touch.moved = true;
+      if (this.touch.moved) {
+        const dWorld = this.screenDeltaToWorld(dx, dy);
+        this.game.cameraRig.pan(dWorld.x, dWorld.z);
+      }
+      this.touch.x = x; this.touch.y = y;
+      this.mouse.x = x; this.mouse.y = y;
+    }
+  }
+
+  onTouchEnd(e) {
+    e.preventDefault();
+    if (!this.enabled) return;
+    if (e.touches.length > 0) { this.pinch = null; return; }
+    const t = this.touch;
+    this.touch = null;
+    this.pinch = null;
+    if (!t) return;
+
+    const dur = performance.now() - t.t0;
+    if (t.moved) return;   // это была панорама
+
+    if (this.game.placement) {
+      this.mouse.x = t.startX; this.mouse.y = t.startY;
+      this.updatePlacement();
+      this.confirmPlacement();
+      return;
+    }
+
+    if (dur >= 420) {
+      // долгий тап = приказ
+      this.rightClick({ clientX: t.startX, clientY: t.startY, button: 2 });
+      return;
+    }
+
+    // тап / двойной тап
+    const now = performance.now();
+    const dbl = now - (this.lastTapTime || 0) < 320;
+    this.lastTapTime = now;
+    const hit = this.pickAt(t.startX, t.startY);
+    if (dbl && hit && hit.faction === 'player' && hit.kind === 'unit') {
+      this.game.selectAllOfType(hit.typeId);
+      return;
+    }
+    this.clickSelect({ clientX: t.startX, clientY: t.startY, ctrlKey: false, shiftKey: false });
+  }
+
+  onMinimapTouch(e) {
+    e.preventDefault();
+    if (!this.enabled) return;
+    const rect = e.target.getBoundingClientRect();
+    const touch = e.changedTouches[0];
+    const px = ((touch.clientX - rect.left) / rect.width) * e.target.width;
+    const py = ((touch.clientY - rect.top) / rect.height) * e.target.height;
+    const w = this.game.minimap.toMap(px, py);
+    if (this._minimapLongPress) {
+      clearTimeout(this._minimapLongPress);
+      this._minimapLongPress = null;
+      const sel = [...this.game.selected].filter((x) => x.faction === 'player' && x.kind === 'unit');
+      if (sel.length) this.issueMove(sel, w.x, w.z);
+      return;
+    }
+    this.game.cameraRig.focus(w.x, w.z);
+    this._minimapLongPress = setTimeout(() => { this._minimapLongPress = null; }, 600);
   }
 
   /* ================= МЫШЬ ================= */

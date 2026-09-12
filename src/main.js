@@ -106,6 +106,15 @@ addEventListener('resize', () => {
   resizeT = setTimeout(() => game.resize(), 80);
 });
 
+/* ---------- PWA: офлайн-режим (только в production, чтобы не ломать HMR) ---------- */
+if (import.meta.env.PROD && 'serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').catch((err) => {
+      console.warn('Service worker не зарегистрирован:', err);
+    });
+  });
+}
+
 /* ---------- отладка ---------- */
 window.__game = game;
 document.getElementById('loading').classList.add('hidden');

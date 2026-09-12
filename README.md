@@ -146,3 +146,30 @@ src/
 | Истребление | ×1.25 | ×1.3 | ×1.4 | 95 с |
 
 Первая волна приходит примерно через `интервал × 1.55` — есть время развернуть оборону.
+## APK для Android
+
+Собрать настоящий `.apk` в этой песочнице нельзя (нет JDK, Android SDK, Gradle;
+`dl.google.com` и Maven Central недоступны). Поэтому APK собирается **на GitHub Actions**,
+где всё предустановлено. Два способа получить APK:
+
+1. **Пуш в ветку** — воркфлоу `.github/workflows/android.yml` запустится сам,
+   APK лежит в артефакте `dominion-debug-apk` на странице запуска.
+2. **Вручную** — GitHub → Actions → *Build Android APK* → *Run workflow*.
+
+Локально (если у вас установлен Android SDK и JDK 17):
+
+```bash
+npm ci && npm run build
+npx cap sync android
+cd android && ./gradlew assembleDebug
+# APK: android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+Что сделано для мобильного:
+
+- **Capacitor-проект** в `android/` (appId `ai.arena.dominion`, ландшафт, тёмная тема, брендовые иконки)
+- **Сенсорное управление**: один палец — панорама, щипок — зум, тап — выбор,
+  долгий тап — приказ, двойной тап — все юниты типа
+- **PWA**: манифест + service worker — ставится на домашний экран и работает офлайн
+- адаптивная вёрстка для ландшафта телефона (`@media (max-height)`)
+- иконки генерируются кодом: `npm run icons`

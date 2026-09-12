@@ -235,3 +235,63 @@ test('экран результатов: статистика выводится
   assert.equal(typeof payload.stats.kills.player, 'number');
   assert.equal(typeof payload.stats.losses.player, 'number');
 });
+
+/* =========================================================
+   Тач-управление и направление камеры
+   ========================================================= */
+test('камера: экранные оси панорамы не инвертированы', () => {
+  const { game } = makeSession();
+  const rig = game.cameraRig;
+  rig.yaw = rig.yawGoal = Math.PI;   // детерминированный угол для проверки осей
+  game.cameraRig.focus(0, 0, true);
+  game.cameraRig.update(0.016);
+  // при yaw=PI камера смотрит в +Z => ArrowUp должна увеличивать goal.z
+  game.cameraRig.keys['arrowup'] = true;
+  for (let i = 0; i < 30; i++) rig.update(1 / 30);
+  rig.keys['arrowup'] = false;
+  assert.ok(rig.goal.z > 1, 'ArrowUp ведёт камеру не «от зрителя»');
+  // ArrowRight при yaw=PI => screen-right = -X
+  rig.focus(0, 0, true); rig.update(0.016);
+  rig.keys['arrowright'] = true;
+  for (let i = 0; i < 30; i++) rig.update(1 / 30);
+  rig.keys['arrowright'] = false;
+  assert.ok(rig.goal.x < -1, 'ArrowRight ведёт не вправо по экрану');
+});
+
+test('ввод: тач-тап выбирает юнита', () => {
+  const { game, input } = makeSession();
+  const unit = game.players.player.units[0];
+  game.cameraRig.focus(unit.x, unit.z, true);
+  game.cameraRig.update(0.016);
+  const p = input.project(unit);
+  assert.ok(p);
+
+  input.onTouchStart({ preventDefault() {}, touches: [{ identifier: 1, clientX: p.x, clientY: p.y }] });
+  input.onTouchEnd({ preventDefault() {}, touches: [], changedTouches: [] });
+  assert.equal(game.selected.size, 1, 'тап не выделил юнита');
+});
+
+test('ввод: панорама одним пальцем и щипок для зума', () => {
+  const { game, input } = makeSession();
+  const before = { x: game.cameraRig.goal.x, z: game.cameraRig.goal.z };
+  input.onTouchStart({ preventDefault() {}, touches: [{ identifier: 1, clientX: 400, clientY: 300 }] });
+  for (let i = 0; i < 20; i++) {
+    input.onTouchMove({ preventDefault() {}, touches: [{ identifier: 1, clientX: 400 + i * 8, clientY: 300 }] });
+  }
+  input.onTouchEnd({ preventDefault() {}, touches: [], changedTouches: [] });
+  const after = { x: game.cameraRig.goal.x, z: game.cameraRig.goal.z };
+  assert.ok(Math.hypot(after.x - before.x, after.z - before.z) > 1, 'панорама тачем не сдвинула камеру');
+
+  // щипок
+  const d0 = game.cameraRig.distanceGoal;
+  input.onTouchStart({ preventDefault() {}, touches: [
+    { identifier: 1, clientX: 380, clientY: 300 },
+    { identifier: 2, clientX: 420, clientY: 300 },
+  ] });
+  input.onTouchMove({ preventDefault() {}, touches: [
+    { identifier: 1, clientX: 340, clientY: 300 },
+    { identifier: 2, clientX: 460, clientY: 300 },
+  ] });
+  input.onTouchEnd({ preventDefault() {}, touches: [], changedTouches: [] });
+  assert.ok(game.cameraRig.distanceGoal < d0, 'раскрывающий щипок должен приближать (zoom in)');
+});
