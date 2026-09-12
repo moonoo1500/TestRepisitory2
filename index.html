@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>DOMINION: Осколки Ариона — RTS</title>
+    <meta name="description" content="3D стратегия в реальном времени: добывай кристаллы, строй базу, веди армию и уничтожь ядро противника." />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M16 2 30 16 16 30 2 16z' fill='%2300e5ff'/%3E%3C/svg%3E" />
+    <link rel="stylesheet" href="/src/ui/styles.css" />
+  </head>
+  <body>
+    <div id="app">
+      <!-- 3D сцена -->
+      <div id="viewport">
+        <canvas id="scene"></canvas>
+        <div id="vignette"></div>
+        <div id="fog-flash"></div>
+        <div id="world-labels"></div>
+        <div id="selection-box" class="hidden"></div>
+        <div id="placement-hud" class="hidden">
+          <div class="ph-title">Размещение конструкции</div>
+          <div class="ph-hint">ЛКМ — поставить · R — повернуть · ПКМ/Esc — отмена</div>
+        </div>
+      </div>
+
+      <!-- Верхняя панель ресурсов -->
+      <header id="topbar">
+        <div class="tb-left">
+          <div class="logo">
+            <span class="logo-diamond"></span>
+            <span class="logo-text">DOMINION<small>Осколки Ариона</small></span>
+          </div>
+        </div>
+        <div class="tb-center">
+          <div class="res" id="res-crystal" title="Кристаллы — основной ресурс">
+            <span class="res-ico ico-crystal"></span>
+            <span class="res-val">0</span>
+            <span class="res-rate">+0/с</span>
+          </div>
+          <div class="res" id="res-power" title="Энергия: потребление / мощность">
+            <span class="res-ico ico-power"></span>
+            <span class="res-val">0/0</span>
+            <div class="power-bar"><div class="power-fill"></div></div>
+          </div>
+          <div class="res" id="res-pop" title="Население: занято / лимит">
+            <span class="res-ico ico-pop"></span>
+            <span class="res-val">0/0</span>
+          </div>
+          <div class="res clock" id="res-clock" title="Время миссии">
+            <span class="res-ico ico-clock"></span>
+            <span class="res-val">00:00</span>
+          </div>
+        </div>
+        <div class="tb-right">
+          <button class="tbtn" id="btn-sound" title="Звук вкл/выкл (M)">♪</button>
+          <button class="tbtn" id="btn-bloom" title="Свечение (эффекты)">✦</button>
+          <button class="tbtn" id="btn-speed" title="Скорость игры">1×</button>
+          <button class="tbtn" id="btn-help" title="Справка (F1)">?</button>
+          <button class="tbtn" id="btn-menu" title="Меню">☰</button>
+        </div>
+      </header>
+
+      <!-- Миникарта -->
+      <aside id="minimap-panel">
+        <div class="mp-head">
+          <span>СЕКТОР <b id="mp-sector">АРИОН-7</b></span>
+          <span id="mp-time">УТРО</span>
+        </div>
+        <canvas id="minimap" width="240" height="240"></canvas>
+        <div class="mp-foot">
+          <span class="legend"><i class="dot dot-ally"></i>Союзники</span>
+          <span class="legend"><i class="dot dot-foe"></i>Враг</span>
+          <span class="legend"><i class="dot dot-res"></i>Кристаллы</span>
+        </div>
+      </aside>
+
+      <!-- Нижняя панель: выбор + команды -->
+      <footer id="bottombar">
+        <div id="selection-panel">
+          <div class="sp-head">
+            <span id="sp-title">Ничего не выбрано</span>
+            <span id="sp-sub" class="sp-sub"></span>
+          </div>
+          <div id="sp-portrait"></div>
+          <div id="sp-queue"></div>
+        </div>
+        <div id="command-card">
+          <div id="cc-grid"></div>
+          <div id="cc-hint">Выберите юнитов ЛКМ или рамкой · ПКМ — приказ</div>
+        </div>
+      </footer>
+
+      <!-- Лента событий -->
+      <div id="event-log"></div>
+
+      <!-- Тосты по центру -->
+      <div id="toast-layer"></div>
+
+      <!-- Экраны -->
+      <div id="screen-start" class="screen">
+        <div class="screen-card">
+          <div class="sc-glow"></div>
+          <h1>DOMINION</h1>
+          <h2>Осколки Ариона</h2>
+          <p class="lead">
+            Планета расколота. Кристаллические жилы — единственное топливо цивилизаций.
+            Разверни командный центр, наладь добычу и сокруши ядро врага раньше, чем он сокрушит твоё.
+          </p>
+          <div class="difficulty">
+            <label>Сложность</label>
+            <div class="diff-row">
+              <button class="diff" data-diff="0">Разведка</button>
+              <button class="diff active" data-diff="1">Вторжение</button>
+              <button class="diff" data-diff="2">Истребление</button>
+            </div>
+          </div>
+          <div class="map-row">
+            <label>Сектор</label>
+            <div class="diff-row">
+              <button class="mapsel" data-map="0">Равнины Ариона</button>
+              <button class="mapsel" data-map="1">Кратеры Каоса</button>
+              <button class="mapsel" data-map="2">Острова Тейи</button>
+            </div>
+          </div>
+          <button id="btn-start" class="cta">НАЧАТЬ ОПЕРАЦИЮ</button>
+          <div class="hotkeys-mini">
+            <span><b>Стрелки / край экрана</b> камера</span><span><b>ЛКМ</b> выбор</span><span><b>ПКМ</b> приказ</span>
+            <span><b>A</b> атака</span><span><b>B</b> стройка</span><span><b>F1</b> справка</span>
+          </div>
+        </div>
+      </div>
+
+      <div id="screen-end" class="screen hidden">
+        <div class="screen-card">
+          <h1 id="end-title">ПОБЕДА</h1>
+          <p class="lead" id="end-text"></p>
+          <div class="stats" id="end-stats"></div>
+          <div class="diff-row">
+            <button id="btn-restart" class="cta">НОВАЯ ОПЕРАЦИЯ</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="screen-pause" class="screen hidden">
+        <div class="screen-card">
+          <h1>ПАУЗА</h1>
+          <div class="diff-row">
+            <button id="btn-resume" class="cta">ПРОДОЛЖИТЬ</button>
+            <button id="btn-restart2" class="ghost">ЗАНОВО</button>
+          </div>
+        </div>
+      </div>
+
+      <div id="screen-help" class="screen hidden">
+        <div class="screen-card wide">
+          <h1>СПРАВКА</h1>
+          <div class="help-cols" id="help-cols"></div>
+          <div class="diff-row"><button id="btn-help-close" class="cta">ПОНЯТНО</button></div>
+        </div>
+      </div>
+
+      <div id="tooltip" class="hidden"></div>
+      <div id="loading"><div class="ld-ring"></div><div class="ld-text">Генерация сектора…</div></div>
+    </div>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
