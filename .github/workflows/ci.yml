@@ -88,58 +88,71 @@ jobs:
         run: |
           set +e
           mkdir -p build/android
-          echo "=== Godot version ==="
-          godot --version || true
-          echo "=== Export presets ==="
-          cat export_presets.cfg || true
-          echo "=== Templates ==="
-          ls -lh ~/.local/share/godot/export_templates/${GODOT_VERSION}.${GODOT_STATUS}/ | head -n 20 || true
-          echo "=== Project check (timeout 15) ==="
-          timeout 15 godot --headless --check-only || echo "check-only exit $?"
-          echo "=== Attempt export-release (timeout 90) ==="
-          timeout 90 godot --headless --verbose --export-release Android build/android/${EXPORT_NAME}.apk
-          EC=$?
-          echo "export-release exit code: $EC"
+          echo "=== Godot version ===" | tee build/android/godot.log
+          godot --version 2>&1 | tee -a build/android/godot.log || true
+          echo "=== Export presets ===" | tee -a build/android/godot.log
+          cat export_presets.cfg 2>&1 | tee -a build/android/godot.log || true
+          echo "=== Templates ===" | tee -a build/android/godot.log
+          ls -lh ~/.local/share/godot/export_templates/${GODOT_VERSION}.${GODOT_STATUS}/ 2>&1 | tee -a build/android/godot.log | head -n 40 || true
+          ls -lh /root/.local/share/godot/export_templates/${GODOT_VERSION}.${GODOT_STATUS}/ 2>&1 | tee -a build/android/godot.log | head -n 40 || true
+          echo "=== Project.godot ===" | tee -a build/android/godot.log
+          cat project.godot 2>&1 | tee -a build/android/godot.log || true
+          echo "=== Import check (timeout 15) ===" | tee -a build/android/godot.log
+          timeout 15 godot --headless --check-only 2>&1 | tee -a build/android/godot.log || echo "check-only exit $?" | tee -a build/android/godot.log
+          echo "=== Attempt export-release (timeout 90) ===" | tee -a build/android/godot.log
+          timeout 90 godot --headless --verbose --export-release Android build/android/${EXPORT_NAME}.apk 2>&1 | tee -a build/android/godot.log
+          EC=${PIPESTATUS[0]}
+          echo "export-release exit code: $EC" | tee -a build/android/godot.log
           if [ $EC -ne 0 ]; then
-            echo "export-release failed/timeout, trying export-debug"
-            timeout 90 godot --headless --verbose --export-debug Android build/android/${EXPORT_NAME}.apk
-            EC2=$?
-            echo "export-debug exit code: $EC2"
+            echo "export-release failed/timeout, trying export-debug" | tee -a build/android/godot.log
+            timeout 90 godot --headless --verbose --export-debug Android build/android/${EXPORT_NAME}.apk 2>&1 | tee -a build/android/godot.log
+            EC2=${PIPESTATUS[0]}
+            echo "export-debug exit code: $EC2" | tee -a build/android/godot.log
             if [ $EC2 -ne 0 ]; then
-              echo "both exports failed/timeout, fallback to generic export"
-              timeout 60 godot --headless --verbose --export Android build/android/${EXPORT_NAME}.apk || echo "generic export failed"
+              echo "both exports failed/timeout, fallback to generic export" | tee -a build/android/godot.log
+              timeout 60 godot --headless --verbose --export Android build/android/${EXPORT_NAME}.apk 2>&1 | tee -a build/android/godot.log || echo "generic export failed" | tee -a build/android/godot.log
             fi
           fi
-          ls -lh build/android/ || true
+          ls -lh build/android/ 2>&1 | tee -a build/android/godot.log || true
           # If APK still missing, create functional placeholder APK (still reports as artifact)
           if [ ! -f build/android/${EXPORT_NAME}.apk ]; then
-            echo "APK not produced by Godot, creating placeholder APK for CI"
+            echo "APK not produced by Godot, creating placeholder APK for CI" | tee -a build/android/godot.log
             mkdir -p /tmp/apk_dummy/META-INF
             echo "Manifest-Version: 1.0" > /tmp/apk_dummy/META-INF/MANIFEST.MF
             echo "Placeholder APK - Godot export failed in CI" > /tmp/apk_dummy/README.txt
             echo "Commit: ${{ github.sha }}" >> /tmp/apk_dummy/README.txt
-            echo "This is a stub for CI artifact; see logs for Godot export error" >> /tmp/apk_dummy/README.txt
-            # Create assets listing
+            echo "This is a stub for CI artifact; see godot.log for error" >> /tmp/apk_dummy/README.txt
             echo "Project: ${{ env.EXPORT_NAME }}" >> /tmp/apk_dummy/README.txt
-            ls -R . >> /tmp/apk_dummy/README.txt || true
-            # Create a minimal valid ZIP that aapt can at least list
+            ls -R . 2>&1 >> /tmp/apk_dummy/README.txt || true
+            cat build/android/godot.log >> /tmp/apk_dummy/README.txt
             cd /tmp/apk_dummy && zip -r $GITHUB_WORKSPACE/build/android/${EXPORT_NAME}.apk . && cd $GITHUB_WORKSPACE
-            echo "WARNING: Using placeholder APK - export failed"
+            echo "WARNING: Using placeholder APK - export failed" | tee -a build/android/godot.log
           else
-            echo "APK produced successfully"
+            echo "APK produced successfully" | tee -a build/android/godot.log
           fi
           # ensure sha
           if [ -f build/android/${EXPORT_NAME}.apk ]; then
             sha256sum build/android/${EXPORT_NAME}.apk | tee build/android/${EXPORT_NAME}.apk.sha256
             cat build/android/${EXPORT_NAME}.apk.sha256
-            # detailed diagnostics
             ls -lh build/android/
-            unzip -l build/android/${EXPORT_NAME}.apk | head -n 50 || true
+            unzip -l build/android/${EXPORT_NAME}.apk 2>&1 | head -n 80 || true
             if command -v aapt >/dev/null 2>&1; then
-              aapt dump badging build/android/${EXPORT_NAME}.apk | head -n 50 || echo "aapt failed (maybe placeholder)"
+              aapt dump badging build/android/${EXPORT_NAME}.apk 2>&1 | head -n 100 || echo "aapt failed (maybe placeholder)"
             fi
           fi
+          # Always capture log
+          cp build/android/godot.log ./godot_export.log || true
           exit 0
+
+      - name: Upload Godot log
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: godot-log
+          path: |
+            build/android/godot.log
+            godot_export.log
+          retention-days: 7
 
       - name: Verify APK
         run: |
