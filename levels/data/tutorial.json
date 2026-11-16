@@ -1,0 +1,27 @@
+{
+  "id": "tutorial",
+  "title_ru": "Обучение: Первый разрез",
+  "title_en": "Tutorial: First Cut",
+  "location": "factory",
+  "world_size": [48, 24, 48],
+  "objectives": [
+    {"id": "move", "title_ru": "Движение", "title_en": "Movement", "target": 1},
+    {"id": "destroy", "title_ru": "Разрушение", "title_en": "Destruction", "target": 3},
+    {"id": "collect", "title_ru": "Собрать фрагмент", "title_en": "Collect fragment", "target": 1}
+  ],
+  "voxels": [
+    {"from": [0,0,0], "to": [48,0,48], "mat": 1},
+    {"from": [0,1,0], "to": [0,8,48], "mat": 1},
+    {"from": [48,1,0], "to": [48,8,48], "mat": 1},
+    {"from": [0,8,0], "to": [48,8,48], "mat": 1},
+    {"from": [10,1,10], "to": [12,4,12], "mat": 3},
+    {"from": [20,1,20], "to": [22,3,22], "mat": 6},
+    {"from": [30,1,10], "to": [30,4,15], "mat": 2}
+  ],
+  "spawns": {
+    "player": [5,2,5],
+    "fragments": [[15,1,15]],
+    "vehicles": []
+  },
+  "alarm_after": 0
+}

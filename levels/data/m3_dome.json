@@ -1,0 +1,29 @@
+{
+  "id": "m3_dome",
+  "title_ru": "Тишина в куполе",
+  "title_en": "Silence in the Dome",
+  "location": "dome",
+  "world_size": [64, 32, 64],
+  "objectives": [
+    {"id": "fire", "title_ru": "Потушить пожары", "title_en": "Extinguish fires", "target": 3},
+    {"id": "drone", "title_ru": "Спасти дронов", "title_en": "Rescue drones", "target": 2},
+    {"id": "reactor", "title_ru": "Отключить реактор", "title_en": "Shutdown reactor", "target": 1}
+  ],
+  "voxels": [
+    {"from": [0,0,0], "to": [64,0,64], "mat": 1},
+    {"from": [0,10,0], "to": [64,12,64], "mat": 4},
+    {"from": [20,1,20], "to": [22,10,22], "mat": 7},
+    {"from": [40,1,40], "to": [42,10,42], "mat": 7},
+    {"from": [28,1,28], "to": [32,3,32], "mat": 6},
+    {"from": [15,1,15], "to": [18,2,18], "mat": 3}
+  ],
+  "spawns": {
+    "player": [6,2,6],
+    "fires": [[16,1,16], [30,1,30], [20,5,20]],
+    "drones": [[18,2,18], [38,2,38]],
+    "reactor": [32,2,32],
+    "vehicles": [{"type": "crab", "pos": [8,1,8]}]
+  },
+  "alarm_after": 780,
+  "alarm_duration": 240
+}

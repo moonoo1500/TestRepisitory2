@@ -1,0 +1,29 @@
+{
+  "id": "m4_final",
+  "title_ru": "Прорыв Контура",
+  "title_en": "Contour Breach",
+  "location": "combined",
+  "world_size": [80, 32, 80],
+  "objectives": [
+    {"id": "bridge", "title_ru": "Обрушить мост", "title_en": "Collapse bridge", "target": 1},
+    {"id": "data", "title_ru": "Данные Контура", "title_en": "Contour data", "target": 3},
+    {"id": "evac", "title_ru": "Эвакуация", "title_en": "Evacuation", "target": 1}
+  ],
+  "voxels": [
+    {"from": [0,0,0], "to": [80,0,80], "mat": 1},
+    {"from": [0,8,36], "to": [80,8,44], "mat": 1},
+    {"from": [35,1,35], "to": [45,8,45], "mat": 7},
+    {"from": [20,1,20], "to": [24,6,24], "mat": 2},
+    {"from": [60,1,60], "to": [64,6,64], "mat": 6},
+    {"from": [30,9,38], "to": [50,9,42], "mat": 7},
+    {"from": [10,1,60], "to": [14,4,65], "mat": 3}
+  ],
+  "spawns": {
+    "player": [4,2,4],
+    "datas": [[22,2,22], [62,2,62], [40,9,40]],
+    "bridge": [40,9,40],
+    "vehicles": [{"type": "ant", "pos": [6,1,6]}, {"type": "crab", "pos": [8,1,10]}]
+  },
+  "alarm_after": 900,
+  "alarm_duration": 300
+}

@@ -1,0 +1,11 @@
+[gd_scene load_steps=2 format=3 uid="uid://explosive_charge"]
+
+[ext_resource type="Script" path="res://src/tools/explosive_charge.gd" id="1"]
+
+[node name="ExplosiveCharge" type="Node3D" script=ExtResource("1")]
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+mesh = SubResource("Box_1")
+
+[sub_resource type="BoxMesh" id="Box_1"]
+size = Vector3(0.4, 0.25, 0.2)
