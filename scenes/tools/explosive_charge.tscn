@@ -1,4 +1,4 @@
-[gd_scene load_steps=2 format=3 uid="uid://explosive_charge"]
+[gd_scene load_steps=2 format=3 uid="uid://GST3XhZyNqD1H"]
 
 [ext_resource type="Script" path="res://src/tools/explosive_charge.gd" id="1"]
 

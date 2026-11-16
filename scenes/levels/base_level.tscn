@@ -1,8 +1,8 @@
-[gd_scene load_steps=4 format=3 uid="uid://base_level"]
+[gd_scene load_steps=4 format=3 uid="uid://HgmbgCktsAQ4A"]
 
 [ext_resource type="Script" path="res://src/core/voxel/voxel_grid.gd" id="1"]
 [ext_resource type="Script" path="res://src/utils/benchmark.gd" id="2"]
-[ext_resource type="PackedScene" uid="uid://player" path="res://scenes/player/player.tscn" id="3"]
+[ext_resource type="PackedScene" path="res://scenes/player/player.tscn" id="3"]
 
 [node name="BaseLevel" type="Node3D"]
 
@@ -33,4 +33,4 @@ reflected_light_source = 1
 tonemap_mode = 2
 tonemap_exposure = 1.0
 
-[ext_resource type="PackedScene" uid="uid://hud" path="res://scenes/ui/hud.tscn" id="4"]
+[ext_resource type="PackedScene" path="res://scenes/ui/hud.tscn" id="4"]

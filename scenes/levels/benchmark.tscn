@@ -1,6 +1,6 @@
-[gd_scene load_steps=3 format=3 uid="uid://benchmark_scene"]
+[gd_scene load_steps=3 format=3 uid="uid://qUJkBsm5OXlat"]
 
-[ext_resource type="PackedScene" uid="uid://base_level" path="res://scenes/levels/base_level.tscn" id="1"]
+[ext_resource type="PackedScene" path="res://scenes/levels/base_level.tscn" id="1"]
 [ext_resource type="Script" path="res://src/core/level_loader.gd" id="2"]
 
 [node name="Benchmark" instance=ExtResource("1")]
