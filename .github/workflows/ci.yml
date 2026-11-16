@@ -88,29 +88,35 @@ jobs:
         run: |
           set +e
           mkdir -p build/android
-          echo "=== Godot version ==="
-          godot --version || true
-          echo "=== Export presets ==="
-          cat export_presets.cfg || true
-          echo "=== Templates ==="
-          ls -lh ~/.local/share/godot/export_templates/${GODOT_VERSION}.${GODOT_STATUS}/ | head -n 20 || true
-          echo "=== Project check (timeout 15) ==="
-          timeout 15 godot --headless --check-only || echo "check-only exit $?"
-          echo "=== Attempt export-release (timeout 90) ==="
-          timeout 90 godot --headless --verbose --export-release Android build/android/${EXPORT_NAME}.apk
-          EC=$?
-          echo "export-release exit code: $EC"
+          : > build/android/godot_export.log
+          echo "=== Godot version ===" | tee -a build/android/godot_export.log
+          godot --version 2>&1 | tee -a build/android/godot_export.log || true
+          echo "=== Export presets ===" | tee -a build/android/godot_export.log
+          cat export_presets.cfg 2>&1 | tee -a build/android/godot_export.log || true
+          echo "=== Templates ===" | tee -a build/android/godot_export.log
+          ls -lh ~/.local/share/godot/export_templates/${GODOT_VERSION}.${GODOT_STATUS}/ 2>&1 | tee -a build/android/godot_export.log | head -n 100 || true
+          ls -lh /root/.local/share/godot/export_templates/${GODOT_VERSION}.${GODOT_STATUS}/ 2>&1 | tee -a build/android/godot_export.log | head -n 100 || true
+          echo "=== Project.godot ===" | tee -a build/android/godot_export.log
+          cat project.godot 2>&1 | tee -a build/android/godot_export.log || true
+          echo "=== List files ===" | tee -a build/android/godot_export.log
+          ls -R . 2>&1 | head -n 300 | tee -a build/android/godot_export.log || true
+          echo "=== Project check (timeout 15) ===" | tee -a build/android/godot_export.log
+          timeout 15 godot --headless --check-only 2>&1 | tee -a build/android/godot_export.log || echo "check-only exit $?" | tee -a build/android/godot_export.log
+          echo "=== Attempt export-release (timeout 90) ===" | tee -a build/android/godot_export.log
+          timeout 90 godot --headless --verbose --export-release Android build/android/${EXPORT_NAME}.apk 2>&1 | tee -a build/android/godot_export.log
+          EC=${PIPESTATUS[0]}
+          echo "export-release exit code: $EC" | tee -a build/android/godot_export.log
           if [ $EC -ne 0 ]; then
-            echo "export-release failed/timeout, trying export-debug"
-            timeout 90 godot --headless --verbose --export-debug Android build/android/${EXPORT_NAME}.apk
-            EC2=$?
-            echo "export-debug exit code: $EC2"
+            echo "export-release failed/timeout, trying export-debug" | tee -a build/android/godot_export.log
+            timeout 90 godot --headless --verbose --export-debug Android build/android/${EXPORT_NAME}.apk 2>&1 | tee -a build/android/godot_export.log
+            EC2=${PIPESTATUS[0]}
+            echo "export-debug exit code: $EC2" | tee -a build/android/godot_export.log
             if [ $EC2 -ne 0 ]; then
-              echo "both exports failed/timeout, fallback to generic export"
-              timeout 60 godot --headless --verbose --export Android build/android/${EXPORT_NAME}.apk || echo "generic export failed"
+              echo "both exports failed/timeout, fallback to generic export" | tee -a build/android/godot_export.log
+              timeout 60 godot --headless --verbose --export Android build/android/${EXPORT_NAME}.apk 2>&1 | tee -a build/android/godot_export.log || echo "generic export failed" | tee -a build/android/godot_export.log
             fi
           fi
-          ls -lh build/android/ || true
+          ls -lh build/android/ 2>&1 | tee -a build/android/godot_export.log || true
           # If APK still missing, create placeholder but try to copy Godot template as more valid APK
           if [ ! -f build/android/${EXPORT_NAME}.apk ]; then
             echo "APK not produced by Godot, trying template fallback"
@@ -153,10 +159,23 @@ jobs:
             cat build/android/${EXPORT_NAME}.apk.sha256
             # detailed diagnostics
             ls -lh build/android/
-            unzip -l build/android/${EXPORT_NAME}.apk | head -n 50 || true
+            unzip -l build/android/${EXPORT_NAME}.apk 2>&1 | head -n 100 | tee -a build/android/godot_export.log || true
             if command -v aapt >/dev/null 2>&1; then
-              aapt dump badging build/android/${EXPORT_NAME}.apk | head -n 50 || echo "aapt failed (maybe placeholder)"
+              aapt dump badging build/android/${EXPORT_NAME}.apk 2>&1 | head -n 100 | tee -a build/android/godot_export.log || echo "aapt failed (maybe placeholder)" | tee -a build/android/godot_export.log
             fi
+            if command -v apksigner >/dev/null 2>&1; then
+              apksigner verify --print-certs build/android/${EXPORT_NAME}.apk 2>&1 | tee -a build/android/godot_export.log || echo "apksigner verify failed" | tee -a build/android/godot_export.log
+            fi
+          fi
+          # Publish log to repo for debugging (always)
+          mkdir -p docs
+          cp build/android/godot_export.log docs/last_godot_export.log || true
+          # push log back to branch if in container with git
+          if [ -d ".git" ]; then
+            git config user.name "ci-bot" || true
+            git config user.email "ci@bot.local" || true
+            git add docs/last_godot_export.log || true
+            git diff --cached --quiet || (git commit -m "ci: log godot export ${{ github.sha }}" && git push origin HEAD:${{ github.ref_name }} || true)
           fi
           exit 0
 
