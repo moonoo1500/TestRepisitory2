@@ -41,74 +41,32 @@ jobs:
     name: Export Android APK
     runs-on: ubuntu-22.04
     needs: test
+    container: barichello/godot-ci:4.4.1
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           lfs: true
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v5
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      - name: Set up Android SDK
-        run: |
-          # Install Android SDK via command line tools (no deprecated action)
-          export ANDROID_HOME=$HOME/android-sdk
-          export ANDROID_SDK_ROOT=$HOME/android-sdk
-          mkdir -p $ANDROID_HOME/cmdline-tools
-          # Use latest cmdline-tools from Google
-          if [ ! -d "$ANDROID_HOME/cmdline-tools/latest" ]; then
-            wget -q https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip -O /tmp/cmdline.zip
-            unzip -q /tmp/cmdline.zip -d /tmp/cmdline
-            mkdir -p $ANDROID_HOME/cmdline-tools/latest
-            mv /tmp/cmdline/cmdline-tools/* $ANDROID_HOME/cmdline-tools/latest/
-            # also keep legacy path for sdkmanager
-            mkdir -p $ANDROID_HOME/cmdline-tools/cmdline-tools
-          fi
-          export PATH=$PATH:$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools
-          echo "ANDROID_HOME=$ANDROID_HOME" >> $GITHUB_ENV
-          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT" >> $GITHUB_ENV
-          echo "$ANDROID_HOME/cmdline-tools/latest/bin" >> $GITHUB_PATH
-          echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
-          echo "$ANDROID_HOME/build-tools/34.0.0" >> $GITHUB_PATH
-          yes | sdkmanager --licenses || true
-          sdkmanager --install "platform-tools" "platforms;android-34" "build-tools;34.0.0"
-          sdkmanager --list_installed || true
-          ls -lh $ANDROID_HOME/build-tools/34.0.0/ || true
-          which sdkmanager && sdkmanager --version || true
-
-      - name: Cache Godot
+      - name: Cache Godot (not needed in container but keep)
         uses: actions/cache@v4
         with:
           path: |
             ~/.local/share/godot/export_templates
             godot.zip
             templates.tpz
-          key: godot-4.4.1-templates
+          key: godot-4.4.1-templates-container
 
-      - name: Install Godot
+      - name: Setup Godot in container
         run: |
-          GODOT_ZIP="Godot_v${GODOT_VERSION}-${GODOT_STATUS}_linux.x86_64.zip"
-          TEMPLATES="Godot_v${GODOT_VERSION}-${GODOT_STATUS}_export_templates.tpz"
-          if [ ! -f "godot.zip" ]; then
-            wget -q https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-${GODOT_STATUS}/${GODOT_ZIP} -O godot.zip
+          godot --version || /usr/local/bin/godot --version || which godot
+          ls -lh /root/.local/share/godot/export_templates/4.4.1.stable/ || ls -lh ~/.local/share/godot/export_templates/4.4.1.stable/ || true
+          # ensure templates are in expected place for container's godot
+          mkdir -p ~/.local/share/godot/export_templates/4.4.1.stable
+          if [ -d "/root/.local/share/godot/export_templates/4.4.1.stable" ]; then
+            cp -r /root/.local/share/godot/export_templates/4.4.1.stable/* ~/.local/share/godot/export_templates/4.4.1.stable/ || true
           fi
-          unzip -q -o godot.zip
-          chmod +x Godot_v${GODOT_VERSION}-${GODOT_STATUS}_linux.x86_64
-          mv Godot_v${GODOT_VERSION}-${GODOT_STATUS}_linux.x86_64 /usr/local/bin/godot
-          godot --version
-
-          # templates
-          mkdir -p ~/.local/share/godot/export_templates/${GODOT_VERSION}.${GODOT_STATUS}
-          if [ ! -f "templates.tpz" ]; then
-            wget -q https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}-${GODOT_STATUS}/${TEMPLATES} -O templates.tpz
-          fi
-          unzip -q templates.tpz -d /tmp
-          cp -r /tmp/templates/* ~/.local/share/godot/export_templates/${GODOT_VERSION}.${GODOT_STATUS}/
-          ls -lh ~/.local/share/godot/export_templates/${GODOT_VERSION}.${GODOT_STATUS}/
+          ls -lh ~/.local/share/godot/export_templates/4.4.1.stable/ | head -n 20 || true
 
       - name: Import project (headless)
         run: |
@@ -117,12 +75,10 @@ jobs:
 
       - name: Debug keystore setup (for alpha)
         run: |
-          # Generate debug keystore if secrets missing
           if [ -z "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" ]; then
             echo "No production keystore, using debug keystore"
             keytool -genkey -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Debug, OU=Debug, O=Debug, L=Debug, S=Debug, C=US" || true
-            ls -lh debug.keystore
-            # configure Godot to use debug keystore via export_presets? Fallback is debug built-in
+            ls -lh debug.keystore || true
           else
             echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > release.keystore
             echo "Release keystore decoded"
