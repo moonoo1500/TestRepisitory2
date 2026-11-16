@@ -136,20 +136,22 @@ jobs:
           godot --version || true
           echo "=== Export presets ==="
           cat export_presets.cfg || true
-          echo "=== Project check ==="
-          godot --headless --check-only || true
-          echo "=== Attempt export-release ==="
-          godot --headless --verbose --export-release Android build/android/${EXPORT_NAME}.apk
+          echo "=== Templates ==="
+          ls -lh ~/.local/share/godot/export_templates/${GODOT_VERSION}.${GODOT_STATUS}/ | head -n 20 || true
+          echo "=== Project check (timeout 15) ==="
+          timeout 15 godot --headless --check-only || echo "check-only exit $?"
+          echo "=== Attempt export-release (timeout 90) ==="
+          timeout 90 godot --headless --verbose --export-release Android build/android/${EXPORT_NAME}.apk
           EC=$?
           echo "export-release exit code: $EC"
           if [ $EC -ne 0 ]; then
-            echo "export-release failed, trying export-debug"
-            godot --headless --verbose --export-debug Android build/android/${EXPORT_NAME}.apk
+            echo "export-release failed/timeout, trying export-debug"
+            timeout 90 godot --headless --verbose --export-debug Android build/android/${EXPORT_NAME}.apk
             EC2=$?
             echo "export-debug exit code: $EC2"
             if [ $EC2 -ne 0 ]; then
-              echo "both exports failed, fallback to generic export"
-              godot --headless --verbose --export Android build/android/${EXPORT_NAME}.apk || true
+              echo "both exports failed/timeout, fallback to generic export"
+              timeout 60 godot --headless --verbose --export Android build/android/${EXPORT_NAME}.apk || echo "generic export failed"
             fi
           fi
           ls -lh build/android/ || true
@@ -161,6 +163,9 @@ jobs:
             echo "Placeholder APK - Godot export failed in CI" > /tmp/apk_dummy/README.txt
             echo "Commit: ${{ github.sha }}" >> /tmp/apk_dummy/README.txt
             echo "This is a stub for CI artifact; see logs for Godot export error" >> /tmp/apk_dummy/README.txt
+            # Create assets listing
+            echo "Project: ${{ env.EXPORT_NAME }}" >> /tmp/apk_dummy/README.txt
+            ls -R . >> /tmp/apk_dummy/README.txt || true
             # Create a minimal valid ZIP that aapt can at least list
             cd /tmp/apk_dummy && zip -r $GITHUB_WORKSPACE/build/android/${EXPORT_NAME}.apk . && cd $GITHUB_WORKSPACE
             echo "WARNING: Using placeholder APK - export failed"
