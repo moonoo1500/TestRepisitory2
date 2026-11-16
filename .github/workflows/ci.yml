@@ -115,8 +115,8 @@ jobs:
           ls -lh build/android/ >> build/android/godot_export.log 2>&1 || true
           # If APK still missing, try to generate minimal valid APK via Python tool
           if [ ! -f build/android/${EXPORT_NAME}.apk ]; then
-            echo "APK not produced by Godot, trying Python minimal APK generator"
-            python3 tools/generate_minimal_apk.py build/android/${EXPORT_NAME}.apk --package com.shatterline.protocol 2>&1 | tee -a build/android/godot_export.log || echo "Python generator failed" | tee -a build/android/godot_export.log
+            echo "APK not produced by Godot, trying Python minimal APK generator" >> build/android/godot_export.log
+            python3 tools/generate_minimal_apk.py build/android/${EXPORT_NAME}.apk --package com.shatterline.protocol >> build/android/godot_export.log 2>&1 || echo "Python generator failed" >> build/android/godot_export.log
             if [ -f build/android/${EXPORT_NAME}.apk ]; then
               echo "Minimal APK generated via Python, size $(ls -lh build/android/${EXPORT_NAME}.apk | awk '{print $5}')"
             else
